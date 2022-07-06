@@ -20,11 +20,11 @@ class ExampleUnitTest {
 
 class CoreUnitTest {
     fun unitTestSection(name: String) {
-        println("<<<<<<<<<< $name <<<<<<<<<<")
+        println(">>>>>>>>>> $name >>>>>>>>>>")
     }
 
     fun endUnitTestSection(name: String) {
-        println(">>>>>>>>>> $name >>>>>>>>>>")
+        println("<<<<<<<<<< $name <<<<<<<<<<")
     }
 
     private fun argPrint(vararg args: Any) {
@@ -887,6 +887,112 @@ class CoreUnitTest {
                 assertEquals(11, x)
             }
             CoreUnitTest().endUnitTestSection("WHILE LOOPS")
+        }
+    }
+
+    class Classes() {
+
+        @Test
+        fun classDefinitionAndInstantiation() {
+            CoreUnitTest().unitTestSection("CLASS DEFINITION AND INSTANTIATION")
+            class Dog { } // class definition scope
+            class Cat  // empty class with scope omitted
+
+            run {
+                var a: Any = Cat()
+                when (a) {
+                    is Cat -> assert(true)
+                    else -> assert(false)
+                }
+            }
+            CoreUnitTest().endUnitTestSection("CLASS DEFINITION AND INSTANTIATION")
+        }
+
+        @Test
+        fun constructors() {
+            CoreUnitTest().unitTestSection("CLASS CONSTRUCTORS")
+            /*
+            Member values can be define in the constructor of a class
+             */
+            run {
+                class Flubinarg(val memberValue: Int) {}
+                val f = Flubinarg(4)
+                assertEquals(4, f.memberValue)
+            }
+
+            /*
+            Because temporaryReference is not defined with `val` or `var` then temporaryReference
+            will only be available within initialization context. IE, temporaryReference will be
+            accessible within initial value assignment of `val`s & `var`s and `init` scopes, but
+            will not be accessible as a member value when used as an object by outside code.
+
+            `val`s/`var`s can be defined in a class body, like below with `memberValue`. In
+            comparison to `temporaryReference`, `memberValue` will be accessible to outside code as
+            a member value.
+             */
+            run {
+                class Flobinarg(temporaryReference: Int) {
+                    val memberValue: Int = temporaryReference
+
+                    init {
+                        assertEquals(3, temporaryReference)
+                    }
+                }
+
+                val f = Flobinarg(3)
+                assertEquals(3, f.memberValue)
+            }
+
+            /*
+            Classes can have secondary constructors for alternative initialization. Secondary
+            constructors can reference their class memory/members with `this` keyword to
+            disambiguate the secondary constructor's arguments from the main constructor's
+            arguments.
+             */
+            run {
+                class Flibinarg() {
+                    var value: Int = 2
+
+                    constructor(value: Int) : this() {
+                        this.value = value
+                    }
+                }
+
+                class Flabinarg(val string: String) {
+                    var flibinarg: Flibinarg = Flibinarg()
+
+                    constructor(string: String, flibinarg: Flibinarg) : this(string) {
+                        this.flibinarg = flibinarg
+                    }
+                }
+
+                val flab = Flabinarg("woot")
+                val flab2 = Flabinarg("wart", Flibinarg(4))
+
+                assertEquals("woot", flab.string)
+                assertEquals(2, flab.flibinarg.value)
+                assertEquals("wart", flab2.string)
+                assertEquals(4, flab2.flibinarg.value)
+            }
+
+            /*
+            Secondary constructors can be treated like a primary constructor if no primary
+            constructor is provided
+             */
+            run {
+                class Flebinarg {
+                    val value: String
+
+                    constructor(value: String) {
+                        this.value = value
+                    }
+                }
+
+                val flebinarg = Flebinarg("wala wala bing bang")
+                assertEquals("wala wala bing bang", flebinarg.value)
+            }
+
+            CoreUnitTest().endUnitTestSection("CLASS CONSTRUCTORS")
         }
     }
 }
