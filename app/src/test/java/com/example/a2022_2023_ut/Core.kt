@@ -196,11 +196,11 @@ class CoreUnitTest {
 
             var a = 1;
             val s1 = "a is $a"
-            assertEquals(s1, "a is 1")
+            assertEquals("a is 1", s1)
 
             a = 3
             val s2 = "${s1.replace("is", "was")}, but now is $a"
-            assertEquals(s2, "a was 1, but now is 3")
+            assertEquals("a was 1, but now is 3", s2)
 
             println("s1[$s1]")
             println("s2[$s2]")
@@ -226,10 +226,10 @@ class CoreUnitTest {
             val c = minOf(3,27)
             val d = alsoMinOf(3,27)
 
-            assertEquals(a, 4)
-            assertEquals(b, 4)
-            assertEquals(c, 3)
-            assertEquals(d, 3)
+            assertEquals(4, a)
+            assertEquals(4, b)
+            assertEquals(3, c)
+            assertEquals(3, d)
 
             println("a[$a]")
             println("b[$b]")
@@ -256,10 +256,10 @@ class CoreUnitTest {
             val h = 13
             val hType = getMyType(h)
 
-            assertEquals(eType, "String")
-            assertEquals(fType, "String")
-            assertEquals(gType, "Unknown")
-            assertEquals(hType, "Int")
+            assertEquals("String", eType)
+            assertEquals("String", fType)
+            assertEquals("Unknown", gType)
+            assertEquals("Int", hType)
 
             val fData = f.data as String
 
@@ -449,16 +449,16 @@ class CoreUnitTest {
             assertType<Long>(b.decimalL)
             assertType<Int>(b.hexidecimal)
             assertType<Int>(b.binary)
-            assertEquals(b.hexidecimal, 15)
-            assertEquals(b.binary, 11)
+            assertEquals(15, b.hexidecimal)
+            assertEquals(11, b.binary)
 
             assertType<Int>(b.oneMillion)
             assertType<Long>(b.creditCardNumber)
 
-            assertEquals(b.underscoreHexBytes, 0xFFECDE5E)
-            assertEquals(b.underscoreHexBytes, 4293713502)
-            assertEquals(b.underscoreBytes, 0b11010010011010011001010010010010)
-            assertEquals(b.underscoreBytes, 3530134674)
+            assertEquals(0xFFECDE5E, b.underscoreHexBytes)
+            assertEquals(4293713502, b.underscoreHexBytes)
+            assertEquals(0b11010010011010011001010010010010, b.underscoreBytes)
+            assertEquals(3530134674, b.underscoreBytes)
 
             assertType<Byte>(b.byte)
             assertType<Short>(b.byteAsShort)
@@ -575,7 +575,7 @@ class CoreUnitTest {
             val b = basicTypes()
             var a: Any = b.string
             val s: String = a as String // unsafe cast
-            assertEquals(s, b.string)
+            assertEquals(b.string, s)
             println("s:$s")
             CoreUnitTest().endUnitTestSection("UNSAFE CAST OPERATOR")
         }
@@ -622,5 +622,271 @@ class CoreUnitTest {
 
         }
          */
+    }
+
+    class ConditionsAndLoops {
+        @Test
+        fun ifExpression() {
+            CoreUnitTest().unitTestSection("IF EXPRESSION")
+            val a = 4
+            val b = 3
+
+            // use "run" lambda as a scope
+            run {
+                var max = a
+
+                // single `if` single statement
+                if (a < b) assert(false)
+            }
+
+            run {
+                var max: Int
+                // `if/else` scoped statement
+                if(a > b) {
+                    assert(true)
+                } else {
+                    assert(false)
+                }
+            }
+
+            run {
+                // ternary operator style `if` showing how `if` returns a value
+                val max = if (a > b) a else b
+
+                if(max == a) assert(true)
+            }
+            CoreUnitTest().endUnitTestSection("IF EXPRESSION")
+        }
+
+        enum class Flurb {
+            DONK, FLURBUS_UNUM, JINKIES
+        }
+
+        /*
+        `when` statement is the equivalent of c `switch` statement, but more powerful because it can
+        take any type and can check types instead of values. `when`, like `if` also returns a value
+         */
+        @Test
+        fun whenExpression() {
+            CoreUnitTest().unitTestSection("WHEN EXPRESSION")
+            run {
+                when (3) {
+                    1 -> assert(false)
+                    2 -> assert(false)
+                    3 -> assert(true)
+                    else -> assert(false)
+                }
+            }
+
+            run {
+                val s: String = "donk"
+                when (s) {
+                    "hello" -> assert(false)
+                    "world" -> assert(false)
+                    "donk" -> assert(true)
+                    else -> assert(false)
+                }
+            }
+
+            /*
+            `else` case is required in `when` statement unless the compiler can prove there are no
+            instances of any values *other* than the given cases, which is the case for enumerations
+            where all cases are covered.
+             */
+            run {
+                val flurbinimus = when (Flurb.DONK) {
+                    Flurb.DONK -> "DONK"
+                    Flurb.FLURBUS_UNUM -> "FLURBUS_UNUM"
+                    Flurb.JINKIES -> "JINKIES"
+                }
+                assertEquals("DONK", flurbinimus)
+            }
+
+
+            /*
+            Cases can be comma separated to handle common behavior
+             */
+            run {
+                when (3) {
+                    1, 2, 3 -> assert(true)
+                    else -> assert(false)
+                }
+            }
+
+            /*
+            The `when` statement allows for runtime case assembly. IE, you can make a case the
+            result of a function call that will execute at runtime
+             */
+            run {
+                val s = "3"
+                when (3) {
+                    s.toInt() -> assert(true)
+                    else -> assert(false)
+                }
+            }
+
+            /*
+            `when` can also check in or !in ranges
+             */
+            run {
+                when (41) {
+                    in 1..10 -> assert(false)
+                    !in 1..10 -> assert(true)
+                }
+            }
+
+            /*
+            A `when` statement can check for types
+             */
+            run {
+                val x: Int = 3
+                val a: Any = x
+                when (a) {
+                    is String -> assert(false)
+                    is Double -> assert(false)
+                    is Long -> assert(false)
+                    is Int -> assert(true)
+                    else -> assert(false)
+                }
+            }
+
+            /*
+            `when` statement operator can be assigned inline
+             */
+            run {
+                when(val x: Int = 14) {
+                    in 1..13 -> assert(false)
+                    else -> assert(true)
+                }
+            }
+
+            CoreUnitTest().endUnitTestSection("WHEN EXPRESSION")
+        }
+
+        @Test
+        fun forLoops() {
+            CoreUnitTest().unitTestSection("FOR LOOPS")
+
+            // make an array[1,2,3,4,5]
+            val ar: Array<Int> = Array(5) { i -> i+1 }
+
+            /*
+            `for` can have a single statement
+             */
+            run {
+                var sum: Int = 0
+                for (element in ar) sum += element
+                assertEquals(15, sum)
+            }
+
+            /*
+            `for` can also be brace enclosed for multiple statements
+             */
+            run {
+                var value: Int = 0
+                for (element in ar) {
+                    value += element
+                    value -= 1
+                }
+                assertEquals(10, value)
+            }
+
+            /*
+            `for` can use a range
+             */
+            run {
+                var sum: Int = 0
+                for (element in 1..5) sum += element
+                assertEquals(15, sum)
+            }
+
+            /*
+            `for` can use a variety of overly-clever iteration and stepping mechanisms
+             */
+            run {
+                var sum: Int = 0
+                for(element in 10 downTo 0 step 2) sum += element
+                assertEquals(30, sum)
+            }
+
+            /*
+            As a surprisingly useful convenience, kotlin provides a way to (somewhat awkwardly)
+            access element's index in `for` loops via standard `withIndex()` container function
+             */
+            run {
+                var indexSum: Int = 0
+                var valueSum: Int = 0
+                for ((index, value) in ar.withIndex()) {
+                    indexSum += index
+                    valueSum += value
+                }
+                assertEquals(10, indexSum)
+                assertEquals(15, valueSum)
+            }
+
+            /*
+            `for` functions with `return`, `break`, and `continue` similarly to C/C++
+             */
+            run {
+                var sum: Int = 0
+                for(i in 1..10) {
+                    if(i > 7) break
+                    sum += i
+                }
+
+                assertEquals( 28, sum)
+            }
+
+            run {
+                var sum: Int = 0
+                for(i in 10 downTo 1) { // reverse range
+                    if(i > 7) continue
+                    sum += i
+                }
+
+                assertEquals(28, sum)
+            }
+
+            run {
+                var sum: Int = 0
+                run {
+                    for(i in 1..10) {
+                        if(i > 7) return
+                        sum += i
+                    }
+                    sum += 100 // won't run
+                }
+
+                assertEquals(28, sum)
+            }
+
+            CoreUnitTest().endUnitTestSection("FOR LOOPS")
+        }
+
+        /*
+        While loops are straightforward in kotlin, they basically match c/c++
+         */
+        @Test
+        fun whileLoops() {
+            CoreUnitTest().unitTestSection("WHILE LOOPS")
+            run {
+                var x: Int = 10
+                while(x > 0) {
+                    x--
+                }
+
+                assertEquals(0, x)
+            }
+
+            run {
+                var x: Int = 0
+                do {
+                    x++
+                } while(x < 11)
+
+                assertEquals(11, x)
+            }
+            CoreUnitTest().endUnitTestSection("WHILE LOOPS")
+        }
     }
 }
