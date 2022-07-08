@@ -891,7 +891,6 @@ class CoreUnitTest {
     }
 
     class Classes() {
-
         @Test
         fun classDefinitionAndInstantiation() {
             CoreUnitTest().unitTestSection("CLASS DEFINITION AND INSTANTIATION")
@@ -993,6 +992,331 @@ class CoreUnitTest {
             }
 
             CoreUnitTest().endUnitTestSection("CLASS CONSTRUCTORS")
+        }
+
+        class classAllMemberTypes(val property1: Int) {
+            val property2: Int
+
+            init {
+                property2 = 2
+            }
+
+            fun function1(int1: Int, int2: Int) : Boolean {
+                return int1 == int1
+            }
+
+            class nestedClass(val property1: Int) { }
+
+            inner class innerNestedClass(val property1: Int) {
+                val property2: Int = this@classAllMemberTypes.property1
+            }
+        }
+
+        @Test
+        fun classMembers() {
+            CoreUnitTest().unitTestSection("CLASS MEMBERS")
+            val c = classAllMemberTypes(15)
+            val nc = classAllMemberTypes.nestedClass(77)
+            val inc = classAllMemberTypes(1).innerNestedClass(2)
+
+            val anonymousClass = object {
+                val goodbye = "Goodbye"
+                val fam = "Fam"
+
+                override fun toString() = "$goodbye $fam"
+            }
+
+            assertEquals(15, c.property1)
+            assertEquals(2, c.property2)
+            assert(c.function1(13, 13))
+            assertEquals(77, nc.property1)
+            assertEquals(2, inc.property1)
+            assertEquals(1, inc.property2)
+            assertEquals("Goodbye Fam", anonymousClass.toString())
+            CoreUnitTest().endUnitTestSection("CLASS MEMBERS")
+        }
+
+        open class Base6 {
+            open fun foo() : Int { return 13 }
+        }
+
+        interface Base6_2 {
+            fun foo() : Int { return 14 }
+        }
+
+        class Derived6() : Base6(), Base6_2 {
+            override fun foo() : Int {
+                return super<Base6_2>.foo() + super<Base6>.foo()
+            }
+        }
+
+        @Test
+        fun classInheritance() {
+            CoreUnitTest().unitTestSection("CLASS INHERITANCE")
+
+            open class Base1
+            class Derived1 : Base1()
+
+            // show type inheritance
+            run {
+                val d = Derived1()
+
+                if(d is Derived1) {
+                    assert(true)
+
+                    if(d is Base1) {
+                        assert(true)
+                    } else {
+                        assert(false)
+                    }
+                } else {
+                    assert(false)
+                }
+            }
+
+            open class Base2(val value: Int)
+            class Derived2(value: Int) : Base2(value)
+
+            // show inherited members
+            run {
+                val d = Derived2(3)
+
+                if(d is Derived2) {
+                    assert(true)
+
+                    if(d is Base2) {
+                        assert(true)
+                        assertEquals(3, d.value)
+                    } else {
+                        assert(false)
+                    }
+                } else {
+                    assert(false)
+                }
+            }
+
+            open class Base3 {
+                open fun foo() : Int { return 1 }
+                fun faa() : Int { return 2 }
+                open val fii : Int = 3
+                open val fuu : Int = 5
+            }
+
+            class Derived3(override val fuu : Int = 5) : Base3() {
+                override fun foo() : Int { return 3 }
+                override val fii : Int = 4
+            }
+
+            // show overriding methods and properties
+            run {
+                val d = Derived3()
+
+                if(d is Derived3) {
+                    assert(true)
+
+                    if(d is Base3) {
+                        assert(true)
+                        assertEquals(3, d.foo())
+                        assertEquals(4, d.fii)
+                        assertEquals(5, d.fuu)
+                    } else {
+                        assert(false)
+                    }
+                } else {
+                    assert(false)
+                }
+            }
+
+            open class Base4 {
+                init { println("Initializing Base4 class") }
+            }
+
+            class Derived4() : Base4() {
+                init { println("Initializing Derived4 class") }
+            }
+
+            // show order of initialization (base is initialized before derived)
+            run {
+                val d = Derived4()
+
+                if(d is Derived4) {
+                    assert(true)
+
+                    if(d is Base4) {
+                        assert(true)
+                    } else {
+                        assert(false)
+                    }
+                } else {
+                    assert(false)
+                }
+            }
+
+            open class Base5 {
+                open fun foo() : Int { return 1 }
+            }
+
+            class Derived5() : Base5() {
+                override fun foo() : Int {
+                    return super.foo()
+                }
+
+                inner class Inner5() {
+                    fun foo() : Int {
+                        return super@Derived5.foo()
+                    }
+                }
+            }
+
+            // show access of super class
+            run {
+                val d = Derived5()
+
+                if(d is Derived5) {
+                    assert(true)
+
+                    if(d is Base5) {
+                        assert(true)
+                        assertEquals(1, d.foo())
+                        assertEquals(1, d.Inner5().foo())
+                    } else {
+                        assert(false)
+                    }
+                } else {
+                    assert(false)
+                }
+            }
+
+            // show multiple inheritance rules where identical functions inherited from 2 parents
+            // requires an override in the derived class
+            run {
+                val d = Derived6()
+
+                if(d is Derived6) {
+                    assert(true)
+
+                    if(d is Base6) {
+                        assert(true)
+
+                        if(d is Base6_2) {
+                            assert(true)
+                            assertEquals(27, d.foo())
+                        }
+                    } else {
+                        assert(false)
+                    }
+                } else {
+                    assert(false)
+                }
+            }
+
+            CoreUnitTest().endUnitTestSection("CLASS INHERITANCE")
+        }
+
+        // const classes apparently need to be an `object`
+        object constClass1 {
+            const val value = 3
+            const val value2 = "wartwartwart"
+        }
+
+        @Test
+        fun classProperties() {
+            CoreUnitTest().unitTestSection("CLASS PROPERTIES")
+
+            // basic properties
+            run {
+                class ab {
+                    var a: String = "a"
+                    var b: String = "b"
+                }
+
+                val c = ab()
+                assertEquals("a", c.a)
+                assertEquals("b", c.b)
+            }
+
+            // getters & setters
+            run {
+                class ab {
+                    var a: Int = 3
+                        get() = field // field == a
+                        set(value) { field = value }
+                }
+            }
+
+            // compile time constants
+            run {
+                val a = constClass1
+                assertEquals(3, a.value)
+                assertEquals("wartwartwart", a.value2)
+            }
+
+            // late initialization of values
+            run {
+                class late {
+                    lateinit var value: String
+                    fun setup() {
+                        value = "three"
+                    }
+                }
+
+                val l = late()
+                l.setup()
+
+                assertEquals("three", l.value)
+            }
+
+            CoreUnitTest().endUnitTestSection("CLASS PROPERTIES")
+        }
+
+        interface Interface1 {
+            fun wee() : Int
+        }
+
+        interface Interface2 : Interface1 {
+            fun woo() : Int { return 0 }
+            val waa : Int
+        }
+
+        interface Interface3 {
+            fun foo() : Int { return 1 }
+        }
+
+        interface Interface4 {
+            fun foo() : Int { return 2 }
+        }
+
+        @Test
+        fun classInterfaces() {
+            CoreUnitTest().unitTestSection("CLASS INTERFACES")
+
+            // overrides of methods, properties, and interface inheritance
+            run {
+                class Implementor : Interface2 {
+                    override fun wee() : Int { return 0 }
+                    override fun woo() : Int { return 1 }
+                    override val waa : Int = 2
+                }
+
+                val i = Implementor()
+                assertEquals(0, i.wee())
+                assertEquals(1, i.woo())
+                assertEquals(2, i.waa)
+            }
+
+            // resolve interface conflicts with an override
+            run {
+                class Implementor : Interface3, Interface4 {
+                    override fun foo() : Int {
+                        return super<Interface4>.foo() + super<Interface3>.foo()
+                    }
+                }
+
+                val i = Implementor()
+                assertEquals(3, i.foo())
+            }
+
+            CoreUnitTest().endUnitTestSection("CLASS INTERFACES")
         }
     }
 }
