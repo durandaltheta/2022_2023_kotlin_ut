@@ -21,6 +21,20 @@ class ExampleUnitTest {
 }
 */
 
+typealias Inteeger = Int
+typealias Loooooong = Long
+typealias Dooble = Double
+typealias Strang = String
+typealias MyHandler = (Any?) -> Any?
+typealias Predicate<T> = (T) -> Boolean
+
+class Outer {
+    inner class Inner
+}
+
+typealias OuterAlias = Outer
+typealias InnerAlias = Outer.Inner
+
 class CoreUnitTest {
     fun unitTestSection(name: String) {
         println(">>>>>>>>>> $name >>>>>>>>>>")
@@ -1695,7 +1709,62 @@ class CoreUnitTest {
             // implement interfaces on an enum
             assertEquals(4, IntOtherMaths.SQUARE.apply(2))
 
+            val ev = enumValues<IntOtherMaths>()
+            assertEquals("FILTHY_DIVIDE_BY_ZERO", ev[0].toString())
+            assertEquals("SQUARE", ev[1].toString())
+
             CoreUnitTest().endUnitTestSection("ENUM CLASSES")
+        }
+
+        @Test
+        fun typeAliases() {
+            CoreUnitTest().unitTestSection("TYPE ALIASES")
+
+            /*
+            typealias Inteeger = Int
+            typealias Loooooong = Long
+            typealias Dooble = Double
+            typealias Strang = String
+            typealias MyHandler = (Any?) -> Any?
+            typealias Predicate<T> = (T) -> Boolean
+
+            class Outer {
+                inner class Inner
+            }
+
+            typealias OuterAlias = Outer
+            typealias InnerAlias = Outer.Inner
+             */
+
+            val i : Inteeger = 10
+            val l : Loooooong = 1
+            val d : Dooble = 4.4
+            val s : Strang = "Hullo Vorld?"
+            val mh : MyHandler = { a: Any? ->
+                if(a != null && a is Inteeger) {
+                    a*a
+                } else {
+                    a
+                }
+            }
+
+            val pd : Predicate<Dooble> = { d -> d == 0.0 }
+
+            assert(i is Inteeger)
+            assert(i is Int)
+            assert(l is Loooooong)
+            assert(l is Long)
+            assert(d is Dooble)
+            assert(d is Double)
+            assert(s is Strang)
+            assert(s is String)
+            assert(mh is MyHandler)
+            assertEquals(null, mh(null))
+            assertEquals(4, mh(2 as Int))
+            assert(pd is Predicate<Dooble>)
+            assert(pd(0.0))
+
+            CoreUnitTest().endUnitTestSection("TYPE ALIASES")
         }
     }
 }
