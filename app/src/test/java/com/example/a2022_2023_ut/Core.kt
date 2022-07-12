@@ -3,6 +3,9 @@ package com.example.a2022_2023_ut
 import org.junit.Test
 
 import org.junit.Assert.*
+import java.util.function.IntBinaryOperator
+import java.util.function.UnaryOperator
+import java.util.function.IntUnaryOperator
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -891,6 +894,16 @@ class CoreUnitTest {
     }
 
     class Classes() {
+        /*
+        Ignoring the following topics for being too in-depth/advanced for common usage:
+        Sealed classes
+        Generics: in, out, where
+        Inline classes
+        Object expressions and declarations
+        Delegation
+        Delegated properties
+         */
+
         @Test
         fun classDefinitionAndInstantiation() {
             CoreUnitTest().unitTestSection("CLASS DEFINITION AND INSTANTIATION")
@@ -1317,6 +1330,372 @@ class CoreUnitTest {
             }
 
             CoreUnitTest().endUnitTestSection("CLASS INTERFACES")
+        }
+
+        fun interface IntPredicate {
+            fun accept(i: Int) : Boolean
+        }
+
+        fun interface IntQuotient {
+            fun accept(quotient: Double) : Double
+        }
+
+        fun interface IntDividend {
+            fun accept(div: Double) : IntQuotient
+        }
+
+        fun functionalDivide() : IntDividend {
+            return object : IntDividend {
+                override fun accept(dividend: Double) : IntQuotient {
+                    return object : IntQuotient {
+                        val dividend = dividend
+                        override fun accept(divisor: Double) : Double {
+                            return dividend as Double / divisor as Double
+                        }
+                    }
+                }
+            }
+        }
+
+        @Test
+        fun samConversions() {
+            CoreUnitTest().unitTestSection("SAM CONVERSIONS")
+
+            // basic predicate usage
+            run {
+                val isOdd = object : IntPredicate { // can use lambda
+                    override fun accept(i: Int) : Boolean {
+                        return i % 2 == 1
+                    }
+                }
+            }
+
+            // can do a SAM conversion for a whole sequence of operations
+            run {
+                val quotient = functionalDivide().accept(6.0).accept(3.0)
+                assertEquals(2.0, quotient, 0.0)
+            }
+
+            /*
+            Ignoring "Migration from an interface with constructor function to a functional
+            interface" as well ass "Functional interfaces vs. type aliases", conceptually it seems
+            too complicated to be common practice.
+             */
+
+            CoreUnitTest().endUnitTestSection("SAM CONVERSIONS")
+        }
+
+        // anyone can see
+        public class visibilityExample1 {
+            fun foo() : Int { return 1 }
+        }
+
+        // only visible inside the enclosing class
+        private class visibilityExample2 {
+            fun foo() : Int { return 2 }
+        }
+
+        // only visible to code compiled in the same module
+        internal class visibilityExample3 {
+            fun foo() : Int { return 3 }
+        }
+
+        // not available in "top-level" declarations (ie, the top-level is where "CoreUnitTest" is
+        // declared, so a theoretical "CoreUnitTest2" at the same level could not see this)
+        protected class visibilityExample4 {
+            fun foo() : Int { return 4 }
+        }
+
+        class visibilityMembersExample1 {
+            public fun foo() : Int { return 1 }
+            private fun faa() : Int { return 2 } // only available within this class only
+            public fun testFaa() : Int { return faa() }
+            internal fun fuu() : Int { return 3 } // only available within files within the same module (files compiled together)
+            protected fun fii() : Int { return 4 } // only available within this class and within subclasses
+            public fun testFii() : Int { return fii() }
+        }
+
+        // primary constructors can have a visibility modifier
+        class visibilityConstructors1 public constructor(val i: Int) {
+            fun foo() : Int { return 1 }
+        }
+
+        class visibilityConstructors2 private constructor(val i: Int) {
+            fun foo() : Int { return 2 }
+            class accessor {
+                fun access(i : Int) : visibilityConstructors2 {
+                    return visibilityConstructors2(i)
+                }
+            }
+        }
+
+        // available only within current compilation module
+        class visibilityConstructors3 internal constructor(val i: Int) {
+            fun foo() : Int { return 3 }
+        }
+
+        class visibilityConstructors4 protected constructor(val i: Int) {
+            fun foo() : Int { return 4 }
+            class accessor {
+                fun access(i : Int) : visibilityConstructors4 {
+                    return visibilityConstructors4(i)
+                }
+            }
+        }
+
+        @Test
+        fun visibilityModifiers() {
+            CoreUnitTest().unitTestSection("VISIBILITY MODIFIERS")
+
+            // class/function visibility
+            run {
+                assertEquals(1,visibilityExample1().foo())
+                assertEquals(2,visibilityExample2().foo())
+                assertEquals(3,visibilityExample3().foo())
+                assertEquals(4,visibilityExample4().foo())
+            }
+
+            // class member visibility
+            run {
+                val vme1 = visibilityMembersExample1()
+                assertEquals(1,vme1.foo())
+                assertEquals(2,vme1.testFaa())
+                assertEquals(3,vme1.fuu())
+                assertEquals(4,vme1.testFii())
+            }
+
+            // class primary constructor visibility
+            run {
+                val vc1 = visibilityConstructors1(5)
+                val vc2 = visibilityConstructors2.accessor().access(6)
+                val vc3 = visibilityConstructors3(7)
+                val vc4 = visibilityConstructors4.accessor().access(8)
+                assertEquals(1, vc1.foo())
+                assertEquals(5, vc1.i)
+                assertEquals(2, vc2.foo())
+                assertEquals(6, vc2.i)
+                assertEquals(3, vc3.foo())
+                assertEquals(7, vc3.i)
+                assertEquals(4, vc4.foo())
+                assertEquals(8, vc4.i)
+            }
+
+            CoreUnitTest().endUnitTestSection("VISIBILITY MODIFIERS")
+        }
+
+        val <T> List<T>.lastIndex: Int
+            get() = size - 1
+
+        @Test
+        fun extensionFunctions() {
+            CoreUnitTest().unitTestSection("EXTENSION FUNCTIONS")
+
+            // extension functions
+            run {
+                fun MutableList<Int>.incr(index: Int) {
+                    this[index] += 1
+                }
+
+                val ml = mutableListOf(1, 2, 3,)
+                ml.incr(1)
+                assertEquals(1,ml[0])
+                assertEquals(3,ml[1])
+                assertEquals(3,ml[2])
+            }
+
+            // nullable receiver
+            run {
+                fun Any?.toInt() : Int {
+                    return if(this == null) {
+                        0
+                    } else if (this is Int) {
+                        this
+                    } else {
+                        0 as Int
+                    }
+                }
+
+                var a: Any? = null
+                var i: Int = a.toInt()
+
+                assertEquals(0, i)
+
+                a = "3"
+                i = a.toInt()
+
+                assertEquals(0, i)
+
+                a = 3
+                i = a.toInt()
+
+                assertEquals(3, i)
+            }
+
+            // extension properties
+            run {
+                val l = listOf(1,2,3)
+                assertEquals(2, l.lastIndex)
+            }
+
+            /*
+            'Companion objects' and 'Declaring extensions as members' are ignored in these tests as
+            too complicated/obscure to be regularly used in kotlin code.
+
+            Scope of extensions is being ignored as it is too complicated to be worthwhile to show
+            in these tests. Basically, you just have to import the extension's name when used
+            outside of the package it was declared in.
+             */
+
+            CoreUnitTest().endUnitTestSection("EXTENSION FUNCTIONS")
+        }
+
+        enum class DogBreed {
+            pitbull, boxer, everything_else
+        }
+
+        data class Dog(val breed: DogBreed, val age: Int)
+
+        @Test
+        fun dataClasses() {
+            CoreUnitTest().unitTestSection("DATA CLASSES")
+
+            val dogs = listOf(Dog(DogBreed.boxer, 3), Dog(DogBreed.everything_else, 2), Dog(DogBreed.pitbull, 5))
+
+            assertEquals(Dog(DogBreed.pitbull, 5), dogs.elementAt(2))
+            assertEquals(3, dogs.elementAt(0).component2())
+
+            val dogs2 = listOf(dogs.elementAt(0).copy(age = 11), Dog(DogBreed.everything_else, 2), Dog(DogBreed.pitbull, 5))
+
+            assertEquals(Dog(DogBreed.boxer, 11), dogs2.elementAt(0))
+            assertEquals(Dog(DogBreed.pitbull, 5), dogs2.elementAt(2))
+            assertEquals(2, dogs2.elementAt(1).component2())
+
+            CoreUnitTest().endUnitTestSection("DATA CLASSES")
+        }
+
+        class Outer1 {
+            fun foo(): Int { return 1 }
+            class Nested {
+                fun faa(): Int { return 2 }
+            }
+        }
+
+        class Outer2 {
+            private val fii: Int = 3 // accessible by members and inner classes
+            fun foo(): Int { return 1 }
+            inner class Inner {
+                fun faa(): Int { return 2 }
+                fun fii(): Int { return fii }
+            }
+        }
+
+        class Outer3 {
+            private val fii: Int = 3 // accessible by members and inner classes
+            fun foo(): Int { return 1 }
+
+            interface IntInner {
+                fun faa(): Int
+                fun fii(): Int
+            }
+
+            // anonymous inner classes are created with object expressions
+            val Inner = object : IntInner {
+                override fun faa(): Int { return 2 }
+                override fun fii(): Int { return fii }
+            }
+        }
+
+        @Test
+        fun nestedAndInnerClasses() {
+            CoreUnitTest().unitTestSection("NESTED AND INNER CLASSES")
+
+            // classes can be nested inside one another and accessed via dot notation
+            assertEquals(1, Outer1().foo())
+            assertEquals(2, Outer1.Nested().faa())
+
+            // inner classes can access their parent object's members
+            assertEquals(1, Outer2().foo())
+            assertEquals(2, Outer2().Inner().faa())
+            assertEquals(3, Outer2().Inner().fii())
+
+            // anonymous inner classes are created with object expressions
+            assertEquals(1, Outer3().foo())
+            assertEquals(2, Outer3().Inner.faa())
+            assertEquals(3, Outer3().Inner.fii())
+
+            CoreUnitTest().endUnitTestSection("NESTED AND INNER CLASSES")
+        }
+
+        // type-safe enums function similarly to C
+        enum class UnexpectedDirections {
+            BACK, TO, THE, FUTURE
+        }
+
+        // enums can be initialized to specific values
+        enum class ZeroOneTwoThree(val v: Int) {
+            ZERO(0),
+            ONE(1),
+            TWO(2),
+            THREE(3)
+        }
+
+        enum class AAAAAUGH {
+            WAITING_AT_THE_DMV {
+                override fun signal() = FREE_AT_LAST
+            },
+            FREE_AT_LAST {
+                override fun signal() = WAITING_AT_THE_DMV
+            };
+
+            abstract fun signal(): AAAAAUGH
+        }
+
+        enum class IntOtherMaths : UnaryOperator<Int>, IntUnaryOperator {
+            FILTHY_DIVIDE_BY_ZERO {
+                override fun apply(i: Int): Int {
+                    assert(false) // you bad, bad man
+                    return 0
+                }
+            },
+            SQUARE {
+                override fun apply(i: Int) : Int {
+                    return i * i
+                }
+            };
+
+            override fun applyAsInt(i: Int) = apply(i)
+        }
+
+        @Test
+        fun enumClasses() {
+            CoreUnitTest().unitTestSection("ENUM CLASSES")
+
+            // can be used in `when` statements like C style `switch`
+            when(UnexpectedDirections.FUTURE) {
+                UnexpectedDirections.BACK -> assert(false)
+                UnexpectedDirections.TO -> assert(false)
+                UnexpectedDirections.THE -> assert(false)
+                UnexpectedDirections.FUTURE -> assert(true)
+            }
+
+            // Since enum class constants are really also classes, they can have constructors and
+            // properties
+            assertEquals(0, ZeroOneTwoThree.ZERO.v)
+            assertEquals(1, ZeroOneTwoThree.ONE.v)
+            assertEquals(2, ZeroOneTwoThree.TWO.v)
+            assertEquals(3, ZeroOneTwoThree.THREE.v)
+
+            // enum constants (which are really just more classes under the hood) automatically
+            // inherit the enum class as an interface and can override said interface to have custom
+            // method implementations. There are some interesting (?) applications where you can use
+            // this feature to implement state transitions
+            assertEquals(AAAAAUGH.FREE_AT_LAST, AAAAAUGH.WAITING_AT_THE_DMV.signal())
+            assertEquals(AAAAAUGH.WAITING_AT_THE_DMV, AAAAAUGH.FREE_AT_LAST.signal())
+
+            // implement interfaces on an enum
+            assertEquals(4, IntOtherMaths.SQUARE.apply(2))
+
+            CoreUnitTest().endUnitTestSection("ENUM CLASSES")
         }
     }
 }
