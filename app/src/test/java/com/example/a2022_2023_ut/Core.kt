@@ -1767,4 +1767,105 @@ class CoreUnitTest {
             CoreUnitTest().endUnitTestSection("TYPE ALIASES")
         }
     }
+
+    class Functions() {
+        @Test
+        fun functionUsage() {
+            CoreUnitTest().unitTestSection("FUNCTION USAGE")
+
+            // function declaration and usage
+            // look mah, I can function
+            run {
+                fun square(x: Int): Int {
+                    return x * x
+                }
+                assertEquals(4, square(2))
+                assertEquals(9, square(3))
+                assertEquals(16, square(4))
+            }
+
+            // function parameters
+            run {
+                fun mult(x: Int, y: Int): Int {
+                    return x * y
+                }
+                assertEquals(2, mult(2, 1))
+                assertEquals(4, mult(2, 2))
+                assertEquals(6, mult(2, 3))
+            }
+
+            // default arguments
+            run {
+                fun multOrSquare(x: Int, y: Int = x): Int {
+                    return x * y
+                }
+                assertEquals(4, multOrSquare(2))
+                assertEquals(9, multOrSquare(3))
+                assertEquals(16, multOrSquare(4))
+                assertEquals(2, multOrSquare(2, 1))
+                assertEquals(4, multOrSquare(2, 2))
+                assertEquals(6, multOrSquare(2, 3))
+
+                // overriding class members
+                open class Foo {
+                    open fun fii(): Int {
+                        return 1
+                    }
+                }
+
+                class Faa : Foo() {
+                    override fun fii(): Int {
+                        return 2
+                    }
+                }
+
+                assertEquals(1, Foo().fii())
+                assertEquals(2, Faa().fii())
+            }
+
+            // named arguments with default arguments
+            run {
+                fun foo(bar: Int = 0, baz: Int) : Int { return bar + baz }
+
+                assertEquals(3, foo(2,1))
+
+                // can specify arguments by name
+                assertEquals(5, foo(bar = 3,baz = 2))
+
+                // default arguments can be used in this way as well if left unspecified
+                assertEquals(7, foo(baz = 7))
+            }
+
+            // c void-like return
+            run {
+                class fakeRetVal(var value : Int) { }
+
+                // Type `Unit` has only one value, Unit. It is used in place of `void` from C languages
+                fun foo(frv : fakeRetVal) : Unit { frv.value = 1 }
+
+                // `Unit` can be omitted in the definition
+                fun faa(frv : fakeRetVal) { frv.value = 2 }
+
+                val frv = fakeRetVal(0)
+                foo(frv)
+                assertEquals(1, frv.value)
+                faa(frv)
+                assertEquals(2, frv.value)
+            }
+
+            // single expression functions
+            run {
+                // can remove curly braces if function is a single expression
+                fun double(x: Int) : Int = x * 2
+
+                // also return type is optional if it can be inferred by the compiler
+                fun dooble(x: Int) = x * 2
+
+                assertEquals(4, double(2))
+                assertEquals(4, dooble(2))
+            }
+
+            CoreUnitTest().endUnitTestSection("FUNCTION USAGE")
+        }
+    }
 }
