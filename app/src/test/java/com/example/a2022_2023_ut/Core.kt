@@ -4,6 +4,7 @@ import android.util.Log.i
 import org.junit.Test
 
 import org.junit.Assert.*
+import java.lang.NullPointerException
 import java.lang.NumberFormatException
 import java.util.function.IntBinaryOperator
 import java.util.function.UnaryOperator
@@ -2041,6 +2042,34 @@ class CoreUnitTest {
                 assertEquals(0, f?.i ?: 0)
                 f = Foo()
                 assertEquals(3, f?.i ?: 0)
+            }
+
+            // the `!!` operator is used to forcibly attempt to cast to non-nullable type, which can
+            // cause null exceptions to be thrown
+            run {
+                class Foo {
+                    var i : Int = 3
+                }
+                var f : Foo? = null
+                try {
+                    assertEquals(3, f!!.i)
+                    assert(false) // this code should not be hit
+                } catch(e: NullPointerException) {
+                    assert(true)
+                }
+            }
+
+            // The `as?` operator will attempt to cast to the given type, else it will return null
+            run {
+                val s: String = "hello"
+                val a: Any = s
+                val i: Int? = a as? Int
+                if(i == null) assert(true)
+                else assert(false)
+
+                val s2: String? = a as? String
+                if(s2 != null) assert(true)
+                else assert(false)
             }
 
             CoreUnitTest().endUnitTestSection("NULL SAFETY")
