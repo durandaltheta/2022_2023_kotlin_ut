@@ -1,8 +1,10 @@
 package com.example.a2022_2023_ut
 
+import android.util.Log.i
 import org.junit.Test
 
 import org.junit.Assert.*
+import java.lang.NumberFormatException
 import java.util.function.IntBinaryOperator
 import java.util.function.UnaryOperator
 import java.util.function.IntUnaryOperator
@@ -906,6 +908,68 @@ class CoreUnitTest {
             CoreUnitTest().endUnitTestSection("WHILE LOOPS")
         }
     }
+
+    /* ignoring returns and jumps as they function essentially identical to c */
+
+    class Exceptions() {
+        @Test
+        fun exceptionClasses() {
+            CoreUnitTest().unitTestSection("EXCEPTIONS CLASSES")
+
+            class myException(override val message: String?) : Throwable(message) {}
+            var b = false
+
+            try {
+                try {
+                    throw myException("woah")
+                } catch (e: myException) {
+                    assertEquals("woah", e.message)
+                    b = true
+                    assert(true)
+                } finally {
+                    // optional block
+                    if(!b) assert(false)
+                }
+            } catch (e : Throwable) {
+                assert(false) // shouldn't run because it was caught lower
+            }
+
+            CoreUnitTest().endUnitTestSection("EXCEPTIONS CLASSES")
+        }
+
+        // try can have a return value
+        @Test
+        fun tryAsAnExpression() {
+            CoreUnitTest().unitTestSection("TRY AS AN EXCEPTION")
+
+            var s: String = "hello"
+            var a: Int? = try { s.toInt() } catch ( e: NumberFormatException) { null }
+            if(a == null) assert(true)
+            else assert(false)
+            s = "12"
+            a = try { s.toInt() } catch ( e: NumberFormatException) { null }
+            if(a == null) assert(false)
+            else {
+                assertEquals(12, a)
+            }
+
+            CoreUnitTest().endUnitTestSection("TRY AS AN EXCEPTION")
+        }
+
+        /* ignoring the `Nothing` type as too specific a usecase to cover */
+    }
+
+    /* Ignoring `Packages and Imports` documentation as they are awkward to 'unit test'. In short:
+    - Packages: 1 more files can start with the `package your.package.name.here` invocation to
+    declare those files as being part of that package name. This is relevant when importing the code
+    for naming reasons and can affect visibility (code marked `internal` will only be visible in
+    files in the same package/module).
+    - Imports: `import` keyword is technologically distinct from c-style `include` and `using` but
+    its functional purposes are similar to those two c keywords, import exists to allow to
+    code/functionality to be exported and used by other code and allow use of code without
+    specifying its whole namespace. In that second regard`import`s can specify different namespace
+    depths to import more or less specific things from a package.
+     */
 
     class Classes() {
         /*
@@ -1858,14 +1922,132 @@ class CoreUnitTest {
                 // can remove curly braces if function is a single expression
                 fun double(x: Int) : Int = x * 2
 
-                // also return type is optional if it can be inferred by the compiler
+                // also return type for single expression functions is optional if it can be
+                // inferred by the compiler
                 fun dooble(x: Int) = x * 2
+
+                // return type is optional with block body functions only if the return type is Unit
+                fun daable(x: Int) = { }
 
                 assertEquals(4, double(2))
                 assertEquals(4, dooble(2))
             }
 
+            // variable number of function arguments (of the same type)
+            run {
+                fun <T> asList(vararg ts: T): List<T> {
+                    val result = ArrayList<T>()
+                    for (t in ts) { // ts is an Array
+                        result.add(t)
+                    }
+                    return result
+                }
+
+                var al = asList(4,3,2,1)
+                assertEquals(3, al.elementAt(1))
+            }
+
+            /* Omitting `Infix notation` as it is unlikely to be something I will write commonly.
+            It is enough to say that infix notation is kind of like a fusion of standard function
+            calls, operator overloading
+
+            Also omitting "local functions" as it would be a pain to end the enclosing classes to
+            show of how you can write `fun foo()` anywhere.
+
+            Similarly, a large percentage of the functions already used and written in this file are
+            member functions already, and do not need to be further explained.
+             */
+
+            /*
+            tailRecursiveFunctions:
+
+            Functions can tail recursively call themselves to implement the tail recursion
+            functional paradigm. If `tailrec` keyword is used in the function definition, the
+            compiler will optimize the recursion so the function does not run out of stack space.
+             */
+            run {
+                tailrec fun iterate(x : Int, depth: Int) : Int {
+                    return if(x<depth) {
+                        depth
+                    } else {
+                        iterate(x+1, depth)
+                    }
+                }
+
+                assertEquals(10, iterate(1,10))
+                assertEquals(15, iterate(2,15))
+                assertEquals(999999999, iterate(3,999999999))
+            }
+
             CoreUnitTest().endUnitTestSection("FUNCTION USAGE")
         }
+
+        @Test
+        fun nullSafety() {
+            CoreUnitTest().unitTestSection("NULL SAFETY")
+
+            // `if` null check
+            run {
+                var i : Int? = null
+                if(i == null) assert(true)
+                else assert(false)
+
+                i = 3
+                if(i != null) {
+                    assertEquals(3,i)
+                }
+                else assert(false)
+            }
+
+            // value can be treated as a non-nullable within an `if` if a null check precedes later checks
+            run {
+                val i : Int? = 3
+                if(i != null && i == 3) assert(true)
+                else assert(false)
+            }
+
+            // safe call operator can magically cause null to be checked before an operation occurs
+            run {
+                class Foo {
+                    var i : Int = 3
+                }
+                var f : Foo? = null
+                if(f?.i == 3) {
+                    assert(false)
+                }
+                f = Foo()
+                if(f?.i == 3) {
+                    assert(true)
+                }
+            }
+
+            // can use this expressions (specifically `let`)
+            run {
+                class Foo {
+                    var i : Int = 3
+                }
+                var f : Foo? = null
+                f?.let { assertEquals(3, it.i) } // won't run
+                f = Foo()
+                f?.let { assertEquals(3, it.i) }
+            }
+
+            // can replace `if/else` with elvis operator `?:`
+            run {
+                class Foo {
+                    var i : Int = 3
+                }
+                var f : Foo? = null
+                assertEquals(0, f?.i ?: 0)
+                f = Foo()
+                assertEquals(3, f?.i ?: 0)
+            }
+
+            CoreUnitTest().endUnitTestSection("NULL SAFETY")
+        }
+    }
+
+    class NullSafety() {
+
     }
 }
