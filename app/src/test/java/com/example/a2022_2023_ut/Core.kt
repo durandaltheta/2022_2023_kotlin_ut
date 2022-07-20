@@ -1950,39 +1950,65 @@ class CoreUnitTest {
 
             /* Omitting `Infix notation` as it is unlikely to be something I will write commonly.
             It is enough to say that infix notation is kind of like a fusion of standard function
-            calls, operator overloading
-
-            Also omitting "local functions" as it would be a pain to end the enclosing classes to
-            show of how you can write `fun foo()` anywhere.
-
-            Similarly, a large percentage of the functions already used and written in this file are
-            member functions already, and do not need to be further explained.
+            calls and operator overloading, allowing the user to use custom functions like they
+            would for Kotlin keywords.
              */
-
-            /*
-            tailRecursiveFunctions:
-
-            Functions can tail recursively call themselves to implement the tail recursion
-            functional paradigm. If `tailrec` keyword is used in the function definition, the
-            compiler will optimize the recursion so the function does not run out of stack space.
-             */
-            run {
-                tailrec fun iterate(x : Int, depth: Int) : Int {
-                    return if(x<depth) {
-                        depth
-                    } else {
-                        iterate(x+1, depth)
-                    }
-                }
-
-                assertEquals(10, iterate(1,10))
-                assertEquals(15, iterate(2,15))
-                assertEquals(999999999, iterate(3,999999999))
-            }
-
             CoreUnitTest().endUnitTestSection("FUNCTION USAGE")
         }
 
+        /*
+        Omitting "function scope" as it would be a pain to end the enclosing classes to show of
+        how you can write `fun foo()` anywhere. The fact that functions can be declared
+        basically anywhere is visible throughout this file. To whit:
+        - local functions: functions can be defined inside of other functions
+        - member functions: functions can be defined as methods of a class
+         */
+
+        /*
+        Generic functions
+
+        Functions can be made available for any type which can successfully be logically
+        substituted in place of a symbolic type (commonly specified as `T`).
+         */
+        @Test
+        fun genericFunctions() {
+            fun <T> toAny(t: T) : Any {
+                return t as Any
+            }
+
+            assert(toAny(3) is Any)
+            assert(toAny(4.44) is Any)
+            assert(toAny("hello") is Any)
+        }
+
+        /*
+        tailRecursiveFunctions:
+
+        Functions can tail recursively call themselves to implement the tail recursion
+        functional paradigm. If `tailrec` keyword is used in the function definition, the
+        compiler will optimize the recursion so the function does not run out of stack space.
+         */
+        @Test
+        fun tailRecursiveFunctions {
+            tailrec fun iterate(x : Int, depth: Int) : Int {
+                return if(x<depth) {
+                    depth
+                } else {
+                    iterate(x+1, depth)
+                }
+            }
+
+            assertEquals(10, iterate(1,10))
+            assertEquals(15, iterate(2,15))
+            assertEquals(999999999, iterate(3,999999999))
+        }
+    }
+
+    class Lambdas() {
+
+    }
+
+    class NullSafety() {
         @Test
         fun nullSafety() {
             CoreUnitTest().unitTestSection("NULL SAFETY")
@@ -2074,9 +2100,286 @@ class CoreUnitTest {
 
             CoreUnitTest().endUnitTestSection("NULL SAFETY")
         }
-    }
-
-    class NullSafety() {
 
     }
+
+    class Equality() {
+        @Test
+        fun equality() {
+            CoreUnitTest().unitTestSection("EQUALITY")
+
+            class foo(val i: Int, val u: Int) {}
+
+            // structure equality only
+            run {
+                val f = foo(3,2)
+                val f2 = foo(3,2)
+
+                if(f.i==f2.i) assert(true)
+                else assert(false)
+
+                if(f.u==f2.u) assert(true)
+                else assert(false)
+
+                if(f!==f2) assert(true) // point to different objects
+                else assert(false)
+            }
+
+            // referential equality
+            run {
+                val f = foo(3,2)
+                val f2 = f
+
+                if(f.i==f2.i) assert(true)
+                else assert(false)
+
+                if(f.u==f2.u) assert(true)
+                else assert(false)
+
+                if(f===f2) assert(true) // point to the same object
+                else assert(false)
+            }
+
+            CoreUnitTest().endUnitTestSection("EQUALITY")
+        }
+    }
+
+    class ThisExpressions() {
+        @Test
+        fun thisExpressions() {
+            CoreUnitTest().unitTestSection("THIS EXPRESSIONS")
+
+            run {
+                class foo {
+                    fun getThis(): foo {
+                        // this refers to the current object of the class
+                        return this
+                    }
+                }
+
+                val f = foo()
+                assertEquals(f, f.getThis())
+            }
+
+            run {
+                class foo {
+                    inner class faa {
+                        fun getThis(): faa {
+                            // this refers to the current object of the class
+                            return this
+                        }
+
+                        fun getFooThis(): foo {
+                            // qualified this (with @) can get other this symbols
+                            return this@foo
+                        }
+                    }
+                }
+
+                val f = foo()
+                val f2 = f.faa()
+                assertEquals(f, f2.getFooThis())
+                assertEquals(f2, f2.getThis())
+            }
+
+            run {
+                class foo {
+                    fun faa() : Int {
+                        return 3
+                    }
+
+                    fun fii() : Int {
+                        return 1
+                    }
+
+                    fun fooTests() : Int {
+                        // member calls to this do not require explicit usage of the `this` symbol
+                        assertEquals(3, this.faa())
+                        assertEquals(1, fii())
+                        return 2
+                    }
+                }
+
+                assertEquals(2, foo().fooTests())
+            }
+
+            CoreUnitTest().endUnitTestSection("THIS EXPRESSIONS")
+        }
+    }
+
+    /*
+    Realized late that the main documentation omits how to do threading, callbacks, futures and
+    promises. Instead, it discusses the problems with these approaches and instead discusses how
+    it solves the problems with coroutines (which it has its own section on).
+
+    Therefore I am omitting code for this section.
+     */
+
+    class Coroutines {
+        /*
+        The coroutine feature, and its many possibilities, are quite extensive. Therefore, I am
+        going to omit *every* possibility of expression and instead focus on the core functionality
+         */
+        /*
+        @Test
+        fun basicUsage() = runBlocking {
+            CoreUnitTest().unitTestSection("COROUTINES BASIC USAGE")
+
+            launch {
+                delay(1000L) // non-blocking delay count is in milliseconds
+            }
+
+            CoreUnitTest().endUnitTestSection("COROUTINES BASIC USAGE")
+        }
+         */
+    }
+
+    /*
+    Annotations are waaaay too complicated to investigate here. They are a very fancy feature which
+    basically allows all sorts of code introspection, application of special rules for the compiler
+    (or other tools), and other code injection vagaries. None of which are particularly easy to
+    show in a test, thus they are omitted from the testing.
+
+    In summary annotations are applied to classes, functions, and variables with the `@` symbol.
+    `@Test` is an example of an annotation used in this file, which specifies the function it is
+    applied to should be run as a unit test.
+     */
+
+    class DestructuringDeclarations {
+        data class IntPair(val first: Int, val second: Int)
+        data class IntTuple(val first: Int, val second: Int, val third: Int)
+
+        // Using `val (name1, name2, ..., nameN)` syntax, can magically assign properties of a
+        // certain types of objects into above named values.
+        @Test
+        fun returningMultipleValues() {
+            CoreUnitTest().unitTestSection("RETURNING MULTIPLE VALUES")
+
+            fun retPair() : IntPair {
+                return IntPair(1,2)
+            }
+
+            val (first, second) = retPair()
+            assertEquals(1,first)
+            assertEquals(2,second)
+
+            fun retTuple() : IntTuple {
+                return IntTuple(3,4,5)
+            }
+
+            val (third, fourth, fifth) = retTuple()
+            assertEquals(3,third)
+            assertEquals(4,fourth)
+            assertEquals(5,fifth)
+
+            CoreUnitTest().endUnitTestSection("RETURNING MULTIPLE VALUES")
+        }
+
+        @Test
+        fun destructuringMaps() {
+            CoreUnitTest().unitTestSection("DESTRUCTURING MAPS")
+            val map = mapOf("hello" to "world", "foo" to "faa", "what a" to "wonderful world")
+            var cnt: Int = 0
+
+            // can iterate through a map and automatically assign key and value to named `val`s
+            for((key,value) in map) {
+                when(key) {
+                    "what a" -> {
+                        cnt+=1
+                        assertEquals("wonderful world",value)
+                    }
+                    "foo" -> {
+                        cnt+=1
+                        assertEquals("faa",value)
+                    }
+                    "hello" -> {
+                        cnt+=1
+                        assertEquals("world",value)
+                    }
+                    else -> assert(false)
+                }
+            }
+
+            assertEquals(3,cnt)
+            CoreUnitTest().endUnitTestSection("DESTRUCTURING MAPS")
+        }
+
+        // can ignore individual destructured values
+        @Test
+        fun destructuringUnusedVariables() {
+            CoreUnitTest().unitTestSection("DESTRUCTURING UNUSED VARIABLES")
+            fun retPair() : IntPair {
+                return IntPair(44,52)
+            }
+
+            val (_, second) = retPair()
+            assertEquals(52,second)
+
+
+            val (first, _) = retPair()
+            assertEquals(44,first)
+            CoreUnitTest().endUnitTestSection("DESTRUCTURING UNUSED VARIABLES")
+        }
+
+        // lambda arguments can also use destructuring
+        @Test
+        fun destructuringInLambdas() {
+            CoreUnitTest().unitTestSection("DESTRUCTURING IN LAMBDAS")
+
+            data class RefInt(var i: Int)
+            data class RefIntPair(var i: RefInt, var u: RefInt)
+
+            // simple argument lambda
+            run {
+                val ri = RefInt(14)
+                val l = { ri: RefInt -> ri.i = 3 }
+                l(ri)
+                assertEquals(3, ri.i)
+            }
+
+            // dual argument lambda
+            run {
+                val ri = RefInt(140)
+                val ri2 = RefInt(11)
+                val l = { ri: RefInt, ri2: RefInt -> ri.i = 1; ri2.i = 2 }
+                l(ri, ri2)
+
+                assertEquals(1, ri.i)
+                assertEquals(2, ri2.i)
+            }
+
+            // dual arguments destructured from a single argument
+            run {
+                val rip = RefIntPair(RefInt(7),RefInt(8))
+                val l = { (ri, ri2): RefIntPair -> ri.i += 1; ri2.i += 2 }
+                l(rip)
+
+                assertEquals(8, rip.i.i)
+                assertEquals(10, rip.u.i)
+            }
+
+            // dual arguments destructured from a single argument and an additional argument
+            run {
+                val rip = RefIntPair(RefInt(9),RefInt(10))
+                val ri = RefInt(11)
+                val l = { (ri, ri2): RefIntPair, ri3: RefInt -> ri.i += 1; ri2.i += 2;  ri3.i += 3}
+                l(rip, ri)
+
+                assertEquals(10, rip.i.i)
+                assertEquals(12, rip.u.i)
+                assertEquals(14, ri.i)
+            }
+
+            CoreUnitTest().endUnitTestSection("DESTRUCTURING IN LAMBDAS")
+        }
+    }
+
+    /*
+    Reflection is too specialized to be widely used in my estimation and is not even included by
+    default (it must be listed as a dependency explicitly in android gradle scripts). Basically,
+    reflection gives the user more access to things like class, function and variable addresses (as
+    references) to do things like pass function pointers around.
+
+    Therefore I am omitting this feature from the unit tests.
+     */
 }
