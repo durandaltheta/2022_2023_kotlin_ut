@@ -1,14 +1,17 @@
 package com.example.a2022_2023_ut
 
-import android.util.Log.i
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.delay
 import org.junit.Test
 
 import org.junit.Assert.*
 import java.lang.NullPointerException
 import java.lang.NumberFormatException
-import java.util.function.IntBinaryOperator
 import java.util.function.UnaryOperator
 import java.util.function.IntUnaryOperator
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -30,6 +33,8 @@ typealias Dooble = Double
 typealias Strang = String
 typealias MyHandler = (Any?) -> Any?
 typealias Predicate<T> = (T) -> Boolean
+typealias FuncRetInt_Int = (Int) -> Int
+typealias FuncRetInt_Unit = () -> Int
 
 class Outer {
     inner class Inner
@@ -38,16 +43,16 @@ class Outer {
 typealias OuterAlias = Outer
 typealias InnerAlias = Outer.Inner
 
-class CoreUnitTest {
-    fun unitTestSection(name: String) {
+open class TestUtilities {
+    public fun unitTestSection(name: String) {
         println(">>>>>>>>>> $name >>>>>>>>>>")
     }
 
-    fun endUnitTestSection(name: String) {
+    public fun endUnitTestSection(name: String) {
         println("<<<<<<<<<< $name <<<<<<<<<<")
     }
 
-    private fun argPrint(vararg args: Any) {
+    public fun argPrint(vararg args: Any) {
         for(s in args) {
             print(s.toString())
             print(" ")
@@ -55,7 +60,7 @@ class CoreUnitTest {
         print("\n")
     }
 
-    private fun prefixCollectionPrint(prefix: String, args: Collection<Any>) {
+    public fun prefixCollectionPrint(prefix: String, args: Collection<Any>) {
         print("$prefix: ")
 
         // clever lambda hack to avoid checking for first or last position in a list
@@ -69,7 +74,9 @@ class CoreUnitTest {
 
         print("\n")
     }
+}
 
+class CoreUnitTest : TestUtilities() {
     class Syntax {
         class testStrings() {
             val boomer = listOf("Cool cat", "Groovy", "Square", "Hoosegow", "Flip a wig", "Threads")
@@ -1901,7 +1908,7 @@ class CoreUnitTest {
                 assertEquals(7, foo(baz = 7))
             }
 
-            // c void-like return
+            // unit-returning functions (c void-like return)
             run {
                 class fakeRetVal(var value : Int) { }
 
@@ -1989,7 +1996,7 @@ class CoreUnitTest {
         compiler will optimize the recursion so the function does not run out of stack space.
          */
         @Test
-        fun tailRecursiveFunctions {
+        fun tailRecursiveFunctions() {
             tailrec fun iterate(x : Int, depth: Int) : Int {
                 return if(x<depth) {
                     depth
@@ -2005,8 +2012,123 @@ class CoreUnitTest {
     }
 
     class Lambdas() {
+        @Test
+        fun higherOrderFunctions() {
+            CoreUnitTest().unitTestSection("HIGHER ORDER FUNCTIONS")
+            val l = listOf(1,2,3)
+            val r = l.fold(10, { a, e -> a + e})
+            assertEquals(16, r)
+            CoreUnitTest().endUnitTestSection("HIGHER ORDER FUNCTIONS")
+        }
 
+        @Test
+        fun functionTypes(){
+            CoreUnitTest().unitTestSection("FUNCTION TYPES")
+            val l1 = { i:Int -> i+1 }
+            val l2 = { 1 }
+
+            assert(l1 is FuncRetInt_Int)
+            assert(l2 is FuncRetInt_Unit)
+            CoreUnitTest().endUnitTestSection("FUNCTION TYPES")
+        }
+
+        @Test
+        fun invokingAFunctionTypeInstance() {
+            CoreUnitTest().unitTestSection("INVOKING A FUNCTION TYPE INSTANCE")
+            val l: (String, String) -> String = { s, s2 -> s + s2 }
+
+            assertEquals("1 and 2", l.invoke("1 an", "d 2"))
+            assertEquals("3 or 4", l("3 o", "r 4"))
+
+            CoreUnitTest().endUnitTestSection("INVOKING A FUNCTION TYPE INSTANCE")
+        }
+
+        @Test
+        fun lambdaExpressionsAndAnonymousFunctions() {
+            fun min(strings: List<String>, lessThan: (String,String) -> Boolean): String {
+                var r: String = ""
+                for(s in strings) {
+                    println("s:$s, r:$r")
+                    if(r == "" || lessThan(s, r)) {
+                        println("${s}.length < ${r}.length")
+                        r = s
+                    }
+                }
+                return r
+            }
+
+            val strings = listOf("helloworld", "the lalelulelo", "foo")
+            if(min(strings, { a,b -> a.length < b.length }) == "foo") assert(true)
+            else assert(false)
+        }
+
+        @Test
+        fun lambdaExpressionSyntax() {
+            val sum: (Int, Int) -> Int = { x: Int, y: Int -> x + y }
+            assertEquals(5, sum(3,2))
+            val sum2 = { x: Int, y: Int -> x + y }
+            assertEquals(10, sum2(4,6))
+        }
+
+        private fun callDoubleArgLambda(x: Int, y: Int, op: (Int, Int) -> Int): Int {
+            return op(x,y)
+        }
+
+        private fun callSingleArgLambda(i:Int, op: (i: Int) -> Int) : Int {
+            return op(i)
+        }
+
+        @Test
+        fun passingTrailingLambdas() {
+            // if the last argument of a function is another function, it can be outside
+            // the call parenthesis
+            assertEquals(15, callDoubleArgLambda(5,3) { x:Int, y:Int -> x * y } )
+        }
+
+        @Test
+        fun itImplicitNameOfASingleParameter() {
+            // if a lambda has only 1 parameter, the name of that parameter can be omitted
+            // and the compiler will give that parameter the name 'it'
+            assertEquals(4, callSingleArgLambda(2) { it * it })
+        }
+
+        @Test
+        fun returningAValueFromALambdaExpression() {
+            // lambda returns can implicit or qualified
+            assertEquals(9, callSingleArgLambda(3) { it * it })
+            assertEquals(16, callSingleArgLambda(4) { return@callSingleArgLambda it * it })
+        }
+
+        // I can't get underscores to work for lambdas, leaving as a comment
+        /*
+        @Test
+        fun underscoreForUnusedVariables() {
+            assertEquals(3, callDoubleArgLambda(4, 3) { (_, x) -> x })
+        }
+         */
+
+        @Test
+        fun anonymousFunctions() {
+            // standard functions can be used like lambdas by excluding the function name
+            assertEquals(3, callDoubleArgLambda(8, 5, fun(x:Int ,y: Int) : Int { return x - y }))
+            assertEquals(3, callDoubleArgLambda(2, 1, fun(x,y) = x + y))
+        }
+
+        @Test
+        fun closures() {
+            // lambdas and anonymous functions can access values created outside of themselves
+            val other = 14
+            assertEquals(22, callSingleArgLambda(8) { it + other })
+        }
+
+        /*
+        Skipping function literals with a receiver, as their usage in common code seems unlikely
+         */
     }
+
+    /*
+    Skipping operator overloading, that's more of a library writing skill
+     */
 
     class NullSafety() {
         @Test
@@ -2215,24 +2337,9 @@ class CoreUnitTest {
     Therefore I am omitting code for this section.
      */
 
-    class Coroutines {
-        /*
-        The coroutine feature, and its many possibilities, are quite extensive. Therefore, I am
-        going to omit *every* possibility of expression and instead focus on the core functionality
-         */
-        /*
-        @Test
-        fun basicUsage() = runBlocking {
-            CoreUnitTest().unitTestSection("COROUTINES BASIC USAGE")
-
-            launch {
-                delay(1000L) // non-blocking delay count is in milliseconds
-            }
-
-            CoreUnitTest().endUnitTestSection("COROUTINES BASIC USAGE")
-        }
-         */
-    }
+    /*
+    Coroutines are covered in the official library section for them
+     */
 
     /*
     Annotations are waaaay too complicated to investigate here. They are a very fancy feature which
@@ -2382,4 +2489,678 @@ class CoreUnitTest {
 
     Therefore I am omitting this feature from the unit tests.
      */
+}
+
+class StandardLibraryUnitTest : TestUtilities() {
+    class Collections : TestUtilities() {
+        @Test
+        fun lists() {
+            Collections().unitTestSection("COLLECTIONS.LISTS")
+
+            val numbers = listOf("one", "two", "three", "four")
+            assertEquals("one", numbers[0])
+            assertEquals("two", numbers[1])
+            assertEquals("three", numbers[2])
+            assertEquals("four", numbers[3])
+
+            var cnt = 0
+            for(number in numbers) { // iterate values
+                cnt+=1
+            }
+
+            assertEquals(4,cnt)
+
+            cnt = 0
+            val numbersIterator = numbers.iterator()
+            while(numbersIterator.hasNext()) {
+                assertEquals(numbers[cnt], numbersIterator.next())
+                cnt+=1
+            }
+
+            assertEquals(4,cnt)
+
+            while(cnt in 0..3) {
+                when (cnt) {
+                    0 -> assertEquals("one",numbers[cnt])
+                    1 -> assertEquals("two",numbers[cnt])
+                    2 -> assertEquals("three",numbers[cnt])
+                    3 -> assertEquals("four",numbers[cnt])
+                }
+            }
+
+            assertEquals(4,cnt)
+
+            Collections().endUnitTestSection("COLLECTIONS.LISTS")
+        }
+
+        @Test
+        fun mutableLists() {
+            Collections().unitTestSection("COLLECTIONS.MUTABLE_LISTS")
+
+            val numbers = mutableListOf("one", "two")
+            numbers.add("three")
+            numbers.add("four")
+            assertEquals("one", numbers[0])
+            assertEquals("two", numbers[1])
+            assertEquals("three", numbers[2])
+            assertEquals("four", numbers[3])
+
+            var cnt = 0
+            for(number in numbers) { // iterate values
+                cnt+=1
+            }
+
+            assertEquals(4,cnt)
+
+            while(cnt in 0..3) {
+                when (cnt) {
+                    0 -> assertEquals("one",numbers[cnt])
+                    1 -> assertEquals("two",numbers[cnt])
+                    2 -> assertEquals("three",numbers[cnt])
+                    3 -> assertEquals("four",numbers[cnt])
+                }
+            }
+
+            assertEquals(4,cnt)
+
+            cnt = 0
+            val numbersIterator = numbers.iterator()
+            while(numbersIterator.hasNext()) {
+                numbersIterator.next()
+                numbersIterator.remove()
+                cnt+=1
+            }
+
+            assertEquals(4,cnt)
+            assertEquals(0, numbers.size)
+
+            Collections().endUnitTestSection("COLLECTIONS.MUTABLE_LISTS")
+        }
+
+        @Test
+        fun sets() {
+            Collections().unitTestSection("COLLECTIONS.SETS")
+
+            val numbers = setOf(1,1,1,2,3,2)
+            val numbers2 = setOf(3,2,1)
+            assert(numbers.contains(1))
+            assert(numbers.contains(2))
+            assert(numbers.contains(3))
+            assertEquals(3, numbers.size)
+            assertEquals(3, numbers2.size)
+            assertEquals(numbers, numbers2)
+
+            var cnt = 0
+            for(number in numbers) { // iterate values
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            cnt = 0
+            val numbersIterator = numbers.iterator()
+            while(numbersIterator.hasNext()) {
+                numbersIterator.next()
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            Collections().endUnitTestSection("COLLECTIONS.SETS")
+        }
+
+        @Test
+        fun mutableSets() {
+            Collections().unitTestSection("COLLECTIONS.MUTABLE_SETS")
+
+            val numbers = mutableSetOf(1,1,1,2,)
+            numbers.add(3)
+            numbers.add(2)
+            val numbers2 = mutableSetOf(3,2,1)
+            assert(numbers.contains(1))
+            assert(numbers.contains(2))
+            assert(numbers.contains(3))
+            assertEquals(3, numbers.size)
+            assertEquals(3, numbers2.size)
+            assertEquals(numbers, numbers2)
+
+            var cnt = 0
+            for(number in numbers) { // iterate values
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            Collections().endUnitTestSection("COLLECTIONS.MUTABLE_SETS")
+        }
+
+        @Test
+        fun maps() {
+            Collections().unitTestSection("COLLECTIONS.MAPS")
+
+            val numbers = mapOf("three" to 3, "two" to 2, "one" to 1)
+
+            if(1 in numbers.values) {
+                assert(true)
+            } else {
+                assert(false)
+            }
+
+            assertEquals(3, numbers["three"])
+            assertEquals(2, numbers["two"])
+            assertEquals(1, numbers["one"])
+
+            var cnt = 0
+            for(number in numbers) { // iterate values
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            cnt = 0
+            val numbersIterator = numbers.iterator()
+            while(numbersIterator.hasNext()) {
+                numbersIterator.next()
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            while(cnt in 0..2) {
+                when (cnt) {
+                    0 -> assertEquals(1,numbers["one"])
+                    1 -> assertEquals(2,numbers["two"])
+                    2 -> assertEquals(3,numbers["three"])
+                }
+            }
+
+            assertEquals(3,cnt)
+
+            Collections().endUnitTestSection("COLLECTIONS.MAPS")
+        }
+
+        @Test
+        fun mutableMaps() {
+            Collections().unitTestSection("COLLECTIONS.MUTABLE_MAPS")
+
+            val numbers = mutableMapOf("three" to 3, "one" to 1)
+            numbers["two"] = 2
+
+            if(1 in numbers.values) {
+                assert(true)
+            } else {
+                assert(false)
+            }
+
+            assertEquals(3, numbers["three"])
+            assertEquals(2, numbers["two"])
+            assertEquals(1, numbers["one"])
+
+            var cnt = 0
+            for(number in numbers) { // iterate values
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            cnt = 0
+            val numbersIterator = numbers.iterator()
+            while(numbersIterator.hasNext()) {
+                numbersIterator.next()
+                cnt+=1
+            }
+
+            assertEquals(3,cnt)
+
+            while(cnt in 0..2) {
+                when (cnt) {
+                    0 -> assertEquals(1,numbers["one"])
+                    1 -> assertEquals(2,numbers["two"])
+                    2 -> assertEquals(3,numbers["three"])
+                }
+            }
+
+            assertEquals(3,cnt)
+
+            Collections().endUnitTestSection("COLLECTIONS.MUTABLE_MAPS")
+        }
+
+        @Test
+        fun sequences() {
+            Collections().unitTestSection("COLLECTIONS.SEQUENCES")
+            // lists (and I assume, any Iterable) can be converted to sequences
+            val wordsSequence = "The quick brown fox jumps over the lazy dog".split(" ").asSequence()
+
+            // From the human reader's perspective, Sequences act essentially the same as normal
+            // Iterables. However, they differ internally, in that Iterables are processed eagerly
+            // (all elements are processed immediately when iterated through), while Sequences are
+            // processed lazily (elements are only evaluated when they the results are required).
+            // Additionally, Sequences process each element through the entire chain of operations
+            // before pulling the next element. IE, in the example below, the string "The" will be
+            // checked for length, converted to length, and placed in the final result container
+            // before "quick" is processed.
+            val lengthsSequence = wordsSequence.filter { println("filter: $it"); it.length <= 4 }
+                .map { println("length: ${it.length}"); it.length }
+                .take(3)
+
+            assertEquals(3,lengthsSequence.elementAt(0))
+            assertEquals(3,lengthsSequence.elementAt(1))
+            assertEquals(4,lengthsSequence.elementAt(2))
+            Collections().endUnitTestSection("COLLECTIONS.SEQUENCES")
+        }
+
+        @Test
+        fun transformations() {
+            Collections().unitTestSection("COLLECTIONS.TRANSFORMATIONS")
+            // transformations create a collection of the results of a function on the elements of another collection
+            val numbers = listOf(1, 2, 3)
+            val mult3 = numbers.map { it * 3 }
+            assertEquals(3, mult3[0])
+            assertEquals(6, mult3[1])
+            assertEquals(9, mult3[2])
+            Collections().endUnitTestSection("COLLECTIONS.TRANSFORMATIONS")
+        }
+
+        @Test
+        fun filtering() {
+            Collections().unitTestSection("COLLECTIONS.FILTERING")
+            // filtering in Kotlin is producing a subset collection from a parent collection based
+            // on a predicate. A predicate is a function which can return either true or false,
+            // if the predicate returns true the element passed as an argument to the predicate will
+            // be appended to the subset collection
+            val numbers = listOf(1,2,3,4,5,6)
+            val evens = numbers.filter { it % 2 == 0}
+            assertEquals(2, evens[0])
+            assertEquals(4, evens[1])
+            assertEquals(6, evens[2])
+            Collections().endUnitTestSection("COLLECTIONS.FILTERING")
+        }
+
+        @Test
+        fun grouping() {
+            Collections().unitTestSection("COLLECTIONS.GROUPING")
+            // grouping is the action of applying a predicate onto a Collection and returning a map
+            // where each key in the map is a value returned from the predicate and each value is
+            // the list of elements for which the predicate returned said key
+            val numbers = listOf("one", "two", "three", "four", "five", "six")
+
+            val group = numbers.groupBy { it.first().uppercase() }
+            var it = group.iterator()
+            val group1 = it.next()
+            val group2 = it.next()
+            val group3 = it.next()
+            val group4 = it.next()
+
+            assertEquals("O", group1.key)
+            assertEquals("one", group1.value[0])
+
+            assertEquals("T", group2.key)
+            assertEquals("two", group1.value[0])
+            assertEquals("three", group1.value[1])
+
+            assertEquals("F", group2.key)
+            assertEquals("four", group1.value[0])
+            assertEquals("five", group1.value[1])
+
+            assertEquals("S", group1.key)
+            assertEquals("six", group1.value[0])
+            Collections().endUnitTestSection("COLLECTIONS.GROUPING")
+        }
+
+        @Test
+        fun retrieveCollectionParts() {
+            Collections().unitTestSection("COLLECTIONS.RETRIEVE_COLLECTION_PARTS")
+            val numbers = listOf("one", "two", "three", "four", "five", "six")
+
+            // slice
+            run {
+                val slice1 = numbers.slice(1..3)
+                val slice2 = numbers.slice(0..4 step 2)
+                val slice3 = numbers.slice(setOf(3,5,0))
+
+                assertEquals("two", slice1[0])
+                assertEquals("three", slice1[1])
+                assertEquals("four", slice1[2])
+                assertEquals("one", slice2[0])
+                assertEquals("three", slice2[1])
+                assertEquals("five", slice2[2])
+                assertEquals("four", slice3[0])
+                assertEquals("six", slice3[1])
+                assertEquals("one", slice3[2])
+            }
+
+            // take and drop
+            run {
+                val took1 = numbers.take(3)
+                val took2 = numbers.takeLast(3)
+                val took3 = numbers.drop(1)
+                val took4 = numbers.dropLast(5)
+
+                assertEquals("one", took1[0])
+                assertEquals("two", took1[1])
+                assertEquals("three", took1[2])
+                assertEquals("four", took2[0])
+                assertEquals("five", took2[1])
+                assertEquals("six", took2[2])
+            }
+
+            // chunked
+            run {
+                val numbers = (0..7).toList()
+                val chunks = numbers.chunked(3)
+
+                assertEquals(listOf(0,1,2), chunks[0])
+                assertEquals(listOf(3,4,5), chunks[1])
+                assertEquals(listOf(6,7), chunks[2])
+            }
+
+            // windowed
+            run {
+                val numbers = listOf("one", "two", "three", "four", "five")
+                val windows = numbers.windowed(3)
+
+                assertEquals(listOf("one","two","three"), windows[0])
+                assertEquals(listOf("two","three","four"), windows[1])
+                assertEquals(listOf("three","four","five"), windows[2])
+            }
+
+            Collections().endUnitTestSection("COLLECTIONS.RETRIEVE_COLLECTION_PARTS")
+        }
+
+        @Test
+        fun retrieveSingleElements() {
+            Collections().unitTestSection("COLLECTIONS.RETRIEVE_SINGLE_ELEMENTS")
+            val numbers = listOf("one", "two", "three", "four", "five")
+
+            // retrieve by position: elementAt, first, last, elementAtOrNull, elementAtOrElse
+            assertEquals("three", numbers.elementAt(2))
+            assertEquals("one", numbers.first())
+            assertEquals("five", numbers.last())
+            assertEquals("five",numbers.elementAtOrNull(4))
+            assertEquals(null,numbers.elementAtOrNull(5))
+            assertEquals("five",numbers.elementAtOrElse(4) { null })
+            assertEquals(null,numbers.elementAtOrElse(5) { null })
+
+            // retrieve by condition: first, last, firstOrNull, lastOrNull
+            assertEquals("four", numbers.first { it.length == 4 })
+            assertEquals("three", numbers.last { it.startsWith("t") })
+            assertEquals("three", numbers.firstOrNull { it.length == 5 })
+            assertEquals(null, numbers.firstOrNull { it.length == 6 })
+            assertEquals("two", numbers.lastOrNull { it.length == 3 })
+            assertEquals(null, numbers.lastOrNull { it.length == 1 })
+
+            // firstNotNullOf, firstNotNullOfOrNull
+            run {
+                val checkNull: (Any?) -> Any? = {
+                    if(it != null && it != "MAYBENULL")  {
+                        it
+                    } else {
+                        null
+                    }
+                }
+                val assortment = listOf(null, "MAYBENULL", null, "NOTNULL", null)
+                assertEquals("NOTNULL", assortment.firstNotNullOf(checkNull))
+                assertEquals("NOTNULL", assortment.firstNotNullOfOrNull(checkNull))
+                assertEquals(null, assortment.firstNotNullOfOrNull { null })
+            }
+
+            // random ommitted due to low importance
+
+            // contains, containsAll, isEmpty, isNotEmpty
+            assertTrue(numbers.contains("two"))
+            assertTrue(numbers.containsAll(listOf("four","one","three")))
+            assertFalse(numbers.isEmpty())
+            assertTrue(numbers.isNotEmpty())
+
+            Collections().endUnitTestSection("COLLECTIONS.RETRIEVE_SINGLE_ELEMENTS")
+        }
+
+        @Test
+        fun ordering() {
+            Collections().unitTestSection("COLLECTIONS.ORDERING")
+
+            // natural order
+            run {
+                val numbers = listOf("one", "two", "three", "four")
+                val sortedNumbers = numbers.sorted()
+                assertTrue("four" == sortedNumbers.elementAt(0))
+                assertTrue("one" == sortedNumbers.elementAt(1))
+                assertTrue("three" == sortedNumbers.elementAt(2))
+                assertTrue("two" == sortedNumbers.elementAt(3))
+            }
+
+            // custom order
+            run {
+                class Version(val major: Int, val minor: Int): Comparable<Version> {
+                    override fun compareTo(other: Version): Int = when {
+                        this.major != other.major -> this.major.compareTo(other.major) // compareTo() in the infix form
+                        this.minor != other.minor -> this.minor.compareTo(other.minor)
+                        else -> 0
+                    }
+                }
+
+                val versions = listOf(Version(1,5), Version(2,3), Version(2,4), Version(2,1), Version(1,1))
+                assertTrue(0 == Version(1,5).compareTo(versions.elementAt(0)))
+                assertTrue(Version(1,5) < versions.elementAt(1))
+                assertTrue(Version(3,0) > versions.elementAt(1))
+
+                val versionComparator = Comparator { v1: Version, v2: Version -> v1.compareTo(v2) }
+                val sortedVersions = versions.sortedWith(versionComparator)
+                assertTrue(versions.elementAt(0) == sortedVersions.elementAt(1))
+                assertTrue(versions.elementAt(1) == sortedVersions.elementAt(3))
+                assertTrue(versions.elementAt(2) == sortedVersions.elementAt(4))
+                assertTrue(versions.elementAt(3) == sortedVersions.elementAt(2))
+                assertTrue(versions.elementAt(4) == sortedVersions.elementAt(0))
+            }
+
+            // reverse order
+            run {
+                val numbers = listOf("one", "two", "three", "four")
+                val reversedNumbers = numbers.reversed()
+                assertEquals("four", reversedNumbers.elementAt(0))
+                assertEquals("three", reversedNumbers.elementAt(1))
+                assertEquals("two", reversedNumbers.elementAt(2))
+                assertEquals("one", reversedNumbers.elementAt(3))
+            }
+
+            // skipping random order as unimportant
+
+            Collections().endUnitTestSection("COLLECTIONS.ORDERING")
+        }
+
+        @Test
+        fun aggregateOperations() {
+            Collections().unitTestSection("COLLECTIONS.AGGREGATE_OPERATIONS")
+
+            val numbers = listOf(1,2,3,4)
+
+            // standard operations
+            run {
+                assertEquals(1, numbers.minOrNull())
+                assertEquals(4, numbers.maxOrNull())
+                assertEquals(10, numbers.sum())
+                assertEquals(4, numbers.count())
+            }
+
+            // fold
+            run {
+                val foldSum = numbers.fold(0) { sum, element -> sum + element }
+                assertEquals(10, foldSum)
+            }
+
+            // reduce is just a slightly simplified fold where the initial value is elementAt(0)
+            run {
+                val reduceSum = numbers.reduce { sum, element -> sum + element }
+                assertEquals(10, reduceSum)
+            }
+
+            Collections().endUnitTestSection("COLLECTIONS.AGGREGATE_OPERATIONS")
+        }
+
+        @Test
+        fun write() {
+            Collections().unitTestSection("COLLECTIONS.WRITE")
+
+            // add
+            val numbers = mutableListOf(1,2,3)
+            assertEquals(3, numbers.size)
+            numbers.add(4)
+            numbers.add(5)
+            assertEquals(5, numbers.size)
+            assertEquals(1, numbers.elementAt(0))
+            assertEquals(2, numbers.elementAt(1))
+            assertEquals(3, numbers.elementAt(2))
+            assertEquals(4, numbers.elementAt(3))
+            assertEquals(5, numbers.elementAt(4))
+
+
+            // remove
+            assertEquals(5, numbers.size)
+            numbers.remove(3)
+            assertEquals(4, numbers.size)
+            assertEquals(1, numbers.elementAt(0))
+            assertEquals(2, numbers.elementAt(1))
+            assertEquals(4, numbers.elementAt(2))
+            assertEquals(5, numbers.elementAt(3))
+
+            // update
+            numbers.set(1,6)
+            assertEquals(4, numbers.size)
+            assertEquals(1, numbers.elementAt(0))
+            assertEquals(6, numbers.elementAt(1))
+            assertEquals(4, numbers.elementAt(2))
+            assertEquals(5, numbers.elementAt(3))
+
+            Collections().endUnitTestSection("COLLECTIONS.WRITE")
+        }
+
+        @Test
+        fun scopeFunctions() {
+            Collections().unitTestSection("COLLECTIONS.SCOPE_FUNCTIONS")
+
+            val numbers = mutableListOf("one","two","three","four","five")
+
+            // let | arg: it, return: lambda result, extension function
+            assertEquals("six", numbers.let { it.add("six"); "six" })
+            assertEquals(6,numbers.size)
+            assertEquals("two", numbers.elementAt(1))
+            assertEquals("six", numbers.elementAt(5))
+
+            // with | arg: this, return: lambda result, takes context object as an argument
+            assertEquals("seven", with(numbers) {
+                this.add("seven")
+                "seven"
+            })
+            assertEquals(7,numbers.size)
+            assertEquals("six", numbers.elementAt(5))
+            assertEquals("seven", numbers.elementAt(6))
+
+            // run | arg: this, return: lambda result, extension function
+            assertEquals("eight", numbers.run {
+                this.add("eight")
+                "eight"
+            })
+            assertEquals(8,numbers.size)
+            assertEquals("seven", numbers.elementAt(6))
+            assertEquals("eight", numbers.elementAt(7))
+
+            // apply | arg: this, return: context object, extension function
+            assertEquals(numbers, numbers.apply { this.add("nine") })
+            assertEquals(9,numbers.size)
+            assertEquals("eight", numbers.elementAt(7))
+            assertEquals("nine", numbers.elementAt(8))
+
+            // also | arg: it, return: context object, extension function
+            assertEquals(numbers, numbers.also { it.add("ten") })
+            assertEquals(10,numbers.size)
+            assertEquals("nine", numbers.elementAt(8))
+            assertEquals("ten", numbers.elementAt(9))
+
+            // takeIf | arg: it, return: object if matches predicate else null, extension function
+            assertEquals(numbers, numbers.takeIf { it == numbers })
+            assertEquals(null, numbers.takeIf { it != numbers })
+
+            // takeUnless | arg: it, return: object if does not match predicate else null, extension function
+            assertEquals(null, numbers.takeUnless { it == numbers })
+            assertEquals(numbers, numbers.takeUnless { it != numbers })
+
+            Collections().endUnitTestSection("COLLECTIONS.SCOPE_FUNCTIONS")
+        }
+    }
+
+    class Coroutines : TestUtilities() {
+        // coroutines are a *very* broad topic, so I have chosen to create a small subset of tests
+        // which show basic usage
+
+        suspend fun doWorld() {
+            delay(1000L)
+            println("World!")
+        }
+
+        @Test
+        fun basicCoroutine() {
+            runBlocking {
+                launch { doWorld() }
+                println("Hello")
+            }
+        }
+
+        @Test
+        fun coroutineChannel() {
+            var recv_vals: MutableList<String> = mutableListOf()
+
+            runBlocking {
+                val ch = Channel<String>()
+
+                launch {
+                    ch.send("one ")
+                    ch.send("more ")
+                    ch.send("time")
+                    ch.close()
+                }
+
+                launch {
+                    for (s in ch) {
+                        recv_vals.add(s)
+                    }
+                }
+            }
+
+            assertEquals("one ", recv_vals[0])
+            assertEquals("more ", recv_vals[1])
+            assertEquals("time", recv_vals[2])
+        }
+
+        @Test
+        fun coroutineChannelExceptionCatching() {
+            var recv_vals: MutableList<String> = mutableListOf()
+            var caught = false
+
+            runBlocking {
+                val ch = Channel<String>()
+
+                launch {
+                    ch.send("one ")
+                    ch.send("more ")
+                    ch.send("time")
+                    ch.close()
+                }
+
+                launch {
+                    try {
+                        while(true) {
+                            recv_vals.add(ch.receive())
+                        }
+                    } catch (ce : ClosedReceiveChannelException) {
+                        caught = true
+                    }
+                }
+            }
+
+            assertTrue(caught)
+            assertEquals("one ", recv_vals[0])
+            assertEquals("more ", recv_vals[1])
+            assertEquals("time", recv_vals[2])
+        }
+    }
 }
